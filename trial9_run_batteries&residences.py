@@ -9,9 +9,10 @@ from trial9_residences_MINLP import Residential_Seasonal_DES
 from trial9_DES_OPF import DES_OPF
 
 '''
-This is the run file for the model that runs all 4 seasons for residential users with network constraints.
-Important Updates (19/10/2020):
-    > Seasons changed to 1 for testing
+This is the run file for the model that inputs data to the
+DES (MINLP) and OPF (NLP), and links them.
+Outputs include design capacities, operational schedule across all 4 seasons,
+power flows, and voltage/angles. 
     
 '''
 m = ConcreteModel()
@@ -32,9 +33,10 @@ m.timestamp = RangeSet(48) #state the total amount of timestamps here
 ft = 48 #state the final time step e.g. 24 or 48
 m.S = RangeSet(4) #number of seasons, adjust the number accordingly. 
 d = {1:90, 2:92, 3:92, 4:91} #days in each season, 1-winter, 2-spring, 3-summer, 4-autumn
-results_file_name = 'MINLP_MOD_season_' #looks incomplete but it will attach the string of season later
+results_file_name = 'MINLP_season_' #looks incomplete but it will attach the string of season later
 results_file_suffix = '.xlsx'
-df_grid = pd.read_excel(parameters_file_name, sheet_name = "Grid")
+df_grid = pd.read_excel(parameters_file_name, sheet_name = "Grid") #required for linking constraints
+S_base = df_grid.iat[5,1]  
 
 #distribution network
 slack = 0
@@ -174,13 +176,9 @@ def OPF_block(m,s):
     
     return m
 
-#m.OPF_res = Block(m.S, rule=OPF_block)
-
 # =============================================================================
 #                  '''Objective + Linking Constraints'''
 # =============================================================================
-
-S_base = df_grid.iat[5,1] 
 
 m.slack = Var(nodes, m.timestamp, bounds = (None,None), initialize = 0)
 
@@ -265,59 +263,6 @@ m.obj = Objective(sense = minimize, expr=sum(b.cost for b in m.DES_res[:]))
 # =============================================================================
 #m.slack.pprint()
 
-# =============================================================================
-# m.DES_res[1].Q1.fix(1)
-# m.DES_res[1].Q2.fix(0)
-# m.DES_res[1].X.fix(0)
-# m.DES_res[1].X['h1',13].fix(1)
-# m.DES_res[1].X['h1',14].fix(1)
-# m.DES_res[1].X['h1',15].fix(1)
-# m.DES_res[1].X['h1',16].fix(1)
-# m.DES_res[1].X['h1',17].fix(1)
-# m.DES_res[1].X['h1',18].fix(1)
-# m.DES_res[1].X['h1',19].fix(1)
-# m.DES_res[1].X['h1',20].fix(1)
-# m.DES_res[1].X['h1',21].fix(1)
-# m.DES_res[1].X['h1',22].fix(1)
-# m.DES_res[1].X['h1',23].fix(1)
-# m.DES_res[1].X['h1',24].fix(1)
-# m.DES_res[1].panels_PV.fix(16)
-# m.DES_res[1].storage_cap.fix(4.228333404)
-# m.DES_res[1].Q1['h1',1,'c1'].fix(1)
-# m.DES_res[1].Q1['h1',13,'c1'].fix(1)
-# m.DES_res[1].Q1['h1',14,'c1'].fix(1)
-# m.DES_res[1].Q2['h1',23,'c1'].fix(1)
-# m.DES_res[1].Q2['h1',24,'c1'].fix(1)
-# m.DES_res[1].Q1['h1',23,'c1'].fix(0)
-# m.DES_res[1].Q1['h1',24,'c1'].fix(0)
-# 
-# print("starting")
-# solver=SolverFactory('gams')
-# results = solver.solve(m, tee=True, solver = 'conopt')
-# print("Solver Status: ",  results.solver.status)
-# =============================================================================
-
-#m.DES_res[1].Q1.unfix()
-#m.DES_res[1].Q2.unfix()
-# =============================================================================
-# m.DES_res[1].Q1['h1',1,'c1'].fix(1)
-# m.DES_res[2].Q1['h1',1,'c1'].fix(1)
-# m.DES_res[3].Q1['h1',1,'c1'].fix(1)
-# m.DES_res[4].Q1['h1',1,'c1'].fix(1)
-# =============================================================================
-#m.DES_res[1].X.unfix()
-# =============================================================================
-# m.DES_res[1].panels_PV['h1'].fix(17)
-# m.DES_res[1].panels_PV['h2'].fix(16)
-# m.DES_res[1].panels_PV['h3'].fix(18)
-# m.DES_res[1].panels_PV['h4'].fix(20)
-# m.DES_res[1].panels_PV['h5'].fix(16)
-# m.DES_res[1].storage_cap['h1','c1'].fix(4.716969513)
-# m.DES_res[1].storage_cap['h2','c1'].fix(4.500890200)
-# m.DES_res[1].storage_cap['h3','c1'].fix(5.061615731)
-# m.DES_res[1].storage_cap['h4','c1'].fix(5.549375898)
-# m.DES_res[1].storage_cap['h3','c1'].fix(4.379538899)
-# =============================================================================
 solver=SolverFactory('gams')
 #options = {}
 results = solver.solve(m, tee=True,  add_options=["GAMS_MODEL.optfile = 1;",'option optcr=0.01;'], solver = 'dicopt')
@@ -348,18 +293,6 @@ def linking_blocks_Q(m,season,house,time,node):
         return Constraint.Skip
 m.Reactive_power_link = Constraint(m.S, house, m.timestamp, nodes, rule = linking_blocks_Q)
 
-# =============================================================================
-# m.DES_res[1].panels_PV['h1'].fix(17)
-# m.DES_res[1].panels_PV['h2'].fix(16)
-# m.DES_res[1].panels_PV['h3'].fix(18)
-# m.DES_res[1].panels_PV['h4'].fix(20)
-# m.DES_res[1].panels_PV['h5'].fix(16)
-# m.DES_res[1].storage_cap['h1','c1'].fix(4.716969513)
-# m.DES_res[1].storage_cap['h2','c1'].fix(4.500890200)
-# m.DES_res[1].storage_cap['h3','c1'].fix(5.061615731)
-# m.DES_res[1].storage_cap['h4','c1'].fix(5.549375898)
-# m.DES_res[1].storage_cap['h3','c1'].fix(4.379538899)
-# =============================================================================
 
 results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.1;'])
 #results = solver.solve(m, tee=True, solver = 'dicopt')
@@ -367,36 +300,7 @@ results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nod
 #print(results)
 #sys.exit()
 #results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.01;'])
-# =============================================================================
-# solver=SolverFactory('gams')
-#results = solver.solve(m, tee=True, solver = 'cplex')
-# =============================================================================
 
-# =============================================================================
-# m.DES_res[1].Q1.fix(1)
-# m.DES_res[1].Q2.fix(0)
-# #m.DES_res[1].X.fix(0)
-# solver=SolverFactory('gams')
-# #solver.options['nlp'] = 'conopt'
-# #options = {}
-# #options['maxcycles'] = 30
-# #solver.options['feaspump'] = 2
-# #options['feaspump'] = 2
-# results = solver.solve(m, tee=True, solver = 'dicopt',add_options=["GAMS_MODEL.optfile = 1;"])
-# #m.pprint()
-# =============================================================================
-
-#m.compute_statistics(active=True)
-# =============================================================================
-# print(m.DES_res[1].nvariables())
-# print(m.DES_res[1].nconstraints())
-# print(m.OPF_res[1].nvariables())
-# print(m.OPF_res[1].nconstraint())
-# =============================================================================
-
-#instance.pprint(filename='foo.txt')
-#m.Active_power_link.pprint()
-#m.Reactive_power_link.pprint()
 
 stop = perf_counter()
 ex_time = stop - start 
