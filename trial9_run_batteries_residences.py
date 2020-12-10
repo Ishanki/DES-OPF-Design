@@ -137,6 +137,7 @@ def seasonal_data(m,s):
     
     #this is the free variable for total cost
     m.cost = Var(bounds = (None, None))
+    #m.cost = Var(bounds = (None, 10000))
     
     #This is the objective function rule that combines the costs of all the seasons
     def rule_objective(m):
@@ -241,7 +242,6 @@ def battery_capacities_residential_rule(m,season,house,battery):
 m.battery_linking_res = Constraint(m.S, house, battery, rule = battery_capacities_residential_rule)
 
 
-
 #This is the objective function combining residential and commercial costs
 #m.obj = Objective(sense = minimize, expr=sum(b.cost for b in m.DES_res[:] for b in m.DES_com[:]))
 m.obj = Objective(sense = minimize, expr=sum(b.cost for b in m.DES_res[:]))
@@ -264,7 +264,7 @@ m.obj = Objective(sense = minimize, expr=sum(b.cost for b in m.DES_res[:]))
 #m.slack.pprint()
 
 solver=SolverFactory('gams')
-#options = {}
+# #options = {}
 results = solver.solve(m, tee=True,  add_options=["GAMS_MODEL.optfile = 1;",'option optcr=0.01;'], solver = 'dicopt')
 #results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.01;'])
 #results = solver.solve(m, tee=True, solver = 'couenne')
@@ -294,11 +294,13 @@ def linking_blocks_Q(m,season,house,time,node):
 m.Reactive_power_link = Constraint(m.S, house, m.timestamp, nodes, rule = linking_blocks_Q)
 
 
+# solver = SolverFactory("octeract-engine")
+# results = solver.solve(m, tee = True, keepfiles=False)
 results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.1;'])
 #results = solver.solve(m, tee=True, solver = 'dicopt')
-#sys.stdout = open('output.txt','w')
-#print(results)
-#sys.exit()
+# sys.stdout = open('output.txt','w')
+# print(results)
+# sys.exit()
 #results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.01;'])
 
 

@@ -80,7 +80,7 @@ class DES_OPF(object):
         Y = {}
         for k,v in model.y_series.items():
             Y[k] = v
-        print(Y)
+        #print(Y)
         
         diags = {}
         for n in self.nodes:
