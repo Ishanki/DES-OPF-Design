@@ -532,7 +532,7 @@ class Residential_Seasonal_DES(object):
                 
         '''reactive power generation'''
         def Inv_q_gen(model,i,t):
-            return (model.Q_gen[i,t]**2) == (((model.P_inv[i,t])**2)*(1-(PF**2))/(PF**2))
+            return model.Q_gen[i,t] == sqrt((((model.P_inv[i,t])**2)*(1-(PF**2))/(PF**2)) + 0.0001)
         #sqrt((model.S_inv[i,t]**2) - (model.P_inv[i,t]**2) + 0.0001)
         model.INV6 = Constraint(model.i,model.t, rule = Inv_q_gen)
         

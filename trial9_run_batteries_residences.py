@@ -5,7 +5,7 @@ import xlrd
 import sys
 from time import perf_counter
 from pandas import ExcelWriter
-from trial9_residences_MINLP import Residential_Seasonal_DES
+from trial9_residences_MINLP_mod import Residential_Seasonal_DES
 from trial9_DES_OPF import DES_OPF
 
 '''
@@ -137,7 +137,7 @@ def seasonal_data(m,s):
     
     #this is the free variable for total cost
     m.cost = Var(bounds = (None, None))
-    #m.cost = Var(bounds = (None, 10000))
+    # m.cost = Var(bounds = (None, 10000))
     
     #This is the objective function rule that combines the costs of all the seasons
     def rule_objective(m):
