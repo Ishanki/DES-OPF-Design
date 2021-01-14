@@ -5,7 +5,7 @@ import xlrd
 import sys
 from time import perf_counter
 from pandas import ExcelWriter
-from trial9_residences_MINLP_mod import Residential_Seasonal_DES
+from trial9_residences_MINLP import Residential_Seasonal_DES
 from trial9_DES_OPF import DES_OPF
 
 '''
@@ -13,6 +13,10 @@ This is the run file for the model that inputs data to the
 DES (MINLP) and OPF (NLP), and links them.
 Outputs include design capacities, operational schedule across all 4 seasons,
 power flows, and voltage/angles. 
+
+08/01/2021 - IMPORTANT UPDATE:
+    > Added a constant named U_BOUND in trial9_residences_MILP.py
+    > This is introduce upper bounds to cost vars 
     
 '''
 m = ConcreteModel()
@@ -25,8 +29,6 @@ loads_file_name = "Loads_houses.xls" #"summer.xls"
 building = ['b1', 'b2']
 #commercial_loads_file_name = "Loads_buildings.xls"
 parameters_file_name = "Parameters_cmbnd.xlsx"
-'''REMOVE THIS AFTER TROUBLESHOOTING'''
-irrad_file_name = "Parameters_cmbnd.xlsx"
 battery = ['c1'] # c1 - lithium ion
 interval = 0.5 #duration of time interval
 m.timestamp = RangeSet(48) #state the total amount of timestamps here
@@ -98,7 +100,7 @@ def seasonal_data(m,s):
     #print(m.elec_house['h1', 34])
     #print(m.heat_house['h2',34]) 
     
-    m.dfi = pd.read_excel(irrad_file_name, sheet_name = "Irradiance")
+    m.dfi = pd.read_excel(parameters_file_name, sheet_name = "Irradiance")
     m.dfi.set_index("Irrad", inplace = True)
     m.dfi = m.dfi.iloc[s-1]
     string3 = "this is irradiance data for season "
@@ -136,8 +138,8 @@ def seasonal_data(m,s):
     m.objective.deactivate()  #deactivating the individual objectives in each block
     
     #this is the free variable for total cost
-    m.cost = Var(bounds = (None, None))
-    # m.cost = Var(bounds = (None, 10000))
+    # m.cost = Var(bounds = (None, None))
+    m.cost = Var(bounds = (None, 7000)) #Octeract bound changes when this is included
     
     #This is the objective function rule that combines the costs of all the seasons
     def rule_objective(m):
@@ -263,40 +265,41 @@ m.obj = Objective(sense = minimize, expr=sum(b.cost for b in m.DES_res[:]))
 # =============================================================================
 #m.slack.pprint()
 
-solver=SolverFactory('gams')
+# solver=SolverFactory('gams')
 # #options = {}
-results = solver.solve(m, tee=True,  add_options=["GAMS_MODEL.optfile = 1;",'option optcr=0.01;'], solver = 'dicopt')
+# results = solver.solve(m, tee=True,  add_options=["GAMS_MODEL.optfile = 1;",'option optcr=0.01;'], solver = 'dicopt')
 #results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.01;'])
 #results = solver.solve(m, tee=True, solver = 'couenne')
-#results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.1;'])
-m.OPF_res = Block(m.S, rule=OPF_block)
+# =============================================================================
+# m.OPF_res = Block(m.S, rule=OPF_block)
+# 
+# def linking_blocks_P(m,season,house,time,node,battery):
+#     for n,v in house_bus.items():
+#         if n == node and v == house:
+#             return (m.DES_res[season].E_PV_sold[house,time] - m.DES_res[season].E_grid[house,time] \
+#                 - m.DES_res[season].E_grid_charge[house,time,battery])/S_base == m.OPF_res[season].P[node,time] #+ m.slack[node,time]
+#         else:
+#             continue
+#     else:
+#         return Constraint.Skip
+# m.Active_power_link = Constraint(m.S, house, m.timestamp, nodes, battery, rule = linking_blocks_P)
+# 
+# 
+# def linking_blocks_Q(m,season,house,time,node):
+#     for n,v in house_bus.items():
+#         if n == node and v == house:
+#             return m.DES_res[season].Q_gen[house,time]/S_base == m.OPF_res[season].Q[node,time] #+ m.slack[node,time]
+#         else:
+#             continue
+#     else:
+#         return Constraint.Skip
+# m.Reactive_power_link = Constraint(m.S, house, m.timestamp, nodes, rule = linking_blocks_Q)
+# =============================================================================
 
-def linking_blocks_P(m,season,house,time,node,battery):
-    for n,v in house_bus.items():
-        if n == node and v == house:
-            return (m.DES_res[season].E_PV_sold[house,time] - m.DES_res[season].E_grid[house,time] \
-                - m.DES_res[season].E_grid_charge[house,time,battery])/S_base == m.OPF_res[season].P[node,time] #+ m.slack[node,time]
-        else:
-            continue
-    else:
-        return Constraint.Skip
-m.Active_power_link = Constraint(m.S, house, m.timestamp, nodes, battery, rule = linking_blocks_P)
 
-
-def linking_blocks_Q(m,season,house,time,node):
-    for n,v in house_bus.items():
-        if n == node and v == house:
-            return m.DES_res[season].Q_gen[house,time]/S_base == m.OPF_res[season].Q[node,time] #+ m.slack[node,time]
-        else:
-            continue
-    else:
-        return Constraint.Skip
-m.Reactive_power_link = Constraint(m.S, house, m.timestamp, nodes, rule = linking_blocks_Q)
-
-
-# solver = SolverFactory("octeract-engine")
-# results = solver.solve(m, tee = True, keepfiles=False)
-results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.1;'])
+solver = SolverFactory("octeract-engine")
+results = solver.solve(m, tee = True, keepfiles=False)
+# results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.1;'])
 #results = solver.solve(m, tee=True, solver = 'dicopt')
 # sys.stdout = open('output.txt','w')
 # print(results)

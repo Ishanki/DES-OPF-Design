@@ -18,6 +18,8 @@ Updates:
     > Battery capacities returned in kWh (constraints adjusted accordingly)
 '''
 
+U_BOUND = 100000
+
 class Residential_Seasonal_DES(object):
     def __init__(self, house, df, days, interval, ft, \
                  irrad, df_scalars, df_roof, elec_house, heat_house, \
@@ -175,7 +177,7 @@ class Residential_Seasonal_DES(object):
         
         AIPV_init = (sum(cc_PV * model.panels_PV[i].value * CRF for i in model.i))/4
         model.annual_inv_PV = Var(within = NonNegativeReals, initialize = AIPV_init,
-                                  doc = 'investment cost of PV')
+                                  bounds=(0,U_BOUND), doc = 'investment cost of PV')
         Egrid_init = {}
         for i,t in zip(model.i,model.t):
             Egrid_init[i,t] = model.E_load[i,t] - model.E_PV_used[i,t].value
@@ -191,16 +193,16 @@ class Residential_Seasonal_DES(object):
             + sum((model.panels_PV[i].value * oc_fixed_PV * (1/365) * self.days * panel_capacity) \
                         for i in model.i if model.E_PV_used[i,t].value != None)
         model.annual_oc_PV = Var(within = NonNegativeReals, initialize = AOPV_init,
-                                 doc = 'total opex of PVs')
+                                 bounds=(0,U_BOUND), doc = 'total opex of PVs')
         
         EI_init = sum((model.E_PV_sold[i,t].value * self.interval * TEx * self.days) for i in model.i for t in model.t)
         model.export_income= Var(within = NonNegativeReals, initialize = EI_init,
-                                 doc = 'Income from selling electricity from PVs to the grid')
+                                 bounds=(0,U_BOUND), doc = 'Income from selling electricity from PVs to the grid')
         
         GI_init = sum(((model.E_PV_used[i,t].value)* self.interval * TGen * self.days) \
                       for i in model.i for t in model.t for c in model.c if model.E_PV_used[i,t].value != None)
         model.gen_income = Var(within = NonNegativeReals, initialize = GI_init,
-                               doc = 'income from generating renewable energy')
+                               bounds=(0,U_BOUND), doc = 'income from generating renewable energy')
         
         #model.area_PV = Var(model.i, within = NonNegativeReals, doc = 'total PV area installed')
         
@@ -215,11 +217,11 @@ class Residential_Seasonal_DES(object):
         
         AIB_init = (sum(cc_b * model.max_H_b[i].value * CRF for i in model.i))/4 
         model.annual_inv_B = Var(within = NonNegativeReals, initialize = AIB_init,
-                                 doc = 'investment cost of boiler')
+                                 bounds=(0,U_BOUND), doc = 'investment cost of boiler')
         
         AOB_init = sum(model.H_b[i,t].value * self.interval * (price_gas/n_b) * self.days  for i in model.i for t in model.t)
         model.annual_oc_b = Var(within = NonNegativeReals, initialize = AOB_init,
-                                doc = 'total opex of boilers')
+                                bounds=(0,U_BOUND), doc = 'total opex of boilers')
         
         Vol_init = {}
         for i in (model.i):
@@ -258,16 +260,16 @@ class Residential_Seasonal_DES(object):
         #model.cycle = Var(model.i, model.t, model.c, within=NonNegativeReals, doc= 'battery cycle number')
         #AIS_init = sum(model.storage_cap[i,c].value * model.cc_storage[c] * CRF/4 for i in model.i for c in model.c)
         model.annual_inv_S = Var(within = NonNegativeReals, #initialize = AIS_init,
-                                 doc = 'annual investment cost of batteries')
+                                 bounds=(0,U_BOUND), doc = 'annual investment cost of batteries')
         
         AOS_init = sum(model.storage_cap[i,c].value *(1/self.interval) * model.om_storage[c] * (1/365) * self.days for i in model.i for c in model.c if model.storage_cap[i,c].value != None)
         model.annual_oc_S = Var(within = NonNegativeReals, initialize = AOS_init,
-                                doc = 'annual opex of batteries')
+                                bounds=(0,U_BOUND), doc = 'annual opex of batteries')
         
         CC_init = sum(((model.E_grid[i,t].value + model.E_grid_charge[i,t,c].value) * self.interval * carbon_grid * c_carbon * self.days) \
                       for i in model.i for t in model.t for c in model.c if model.E_grid_charge[i,t,c].value != None)
         model.carbon_cost = Var(within = NonNegativeReals, initialize = CC_init,
-                                doc = 'carbon cost calculations')
+                                bounds=(0,U_BOUND), doc = 'carbon cost calculations')
         
         InC_init = {}
         for i,t in zip(model.i,model.t):
@@ -296,7 +298,7 @@ class Residential_Seasonal_DES(object):
         
         ACG = sum(((model.E_grid[i,t].value + model.E_grid_charge[i,t,c].value) * self.interval * price_grid * self.days) \
                   for i in model.i for t in model.t for c in model.c if model.E_grid_charge[i,t,c].value != None)
-        model.annual_cost_grid = Var(within = NonNegativeReals, doc = 'cost of purchasing electricity from the grid')
+        model.annual_cost_grid = Var(within = NonNegativeReals, bounds=(0,U_BOUND), doc = 'cost of purchasing electricity from the grid')
         
         '''Binary variables'''
         model.X = Var(model.i, model.t, within=Binary, initialize = 0, doc = '0 if electricity is bought from the grid')
@@ -532,7 +534,7 @@ class Residential_Seasonal_DES(object):
                 
         '''reactive power generation'''
         def Inv_q_gen(model,i,t):
-            return (model.Q_gen[i,t]**2) == (((model.P_inv[i,t])**2)*(1-(PF**2))/(PF**2))
+            return model.Q_gen[i,t] == sqrt((((model.P_inv[i,t])**2)*(1-(PF**2))/(PF**2)) + 0.0001)
         #sqrt((model.S_inv[i,t]**2) - (model.P_inv[i,t]**2) + 0.0001)
         model.INV6 = Constraint(model.i,model.t, rule = Inv_q_gen)
         
@@ -551,9 +553,9 @@ class Residential_Seasonal_DES(object):
         model.GCa = Constraint(rule = grid_day)
         
         '''total cost of buying electricity during the night'''
-        def grid_day(model):
+        def grid_night(model):
             return model.cost_night == sum(((model.E_grid[i,t] + model.E_grid_charge[i,t,c]) * self.interval * pg_night * self.days) for i in model.i for t in model.t_night for c in model.c)
-        model.GCb = Constraint(rule = grid_day)
+        model.GCb = Constraint(rule = grid_night)
         
         '''Cost of buying electricity per year'''
         def annual_electricity_cost(model):
