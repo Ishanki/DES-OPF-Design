@@ -270,31 +270,29 @@ m.obj = Objective(sense = minimize, expr=sum(b.cost for b in m.DES_res[:]))
 # results = solver.solve(m, tee=True,  add_options=["GAMS_MODEL.optfile = 1;",'option optcr=0.01;'], solver = 'dicopt')
 #results = solver.solve(m, tee=True, solver = 'sbb', add_options=["GAMS_MODEL.nodlim = 5000;",'option optcr=0.01;'])
 #results = solver.solve(m, tee=True, solver = 'couenne')
-# =============================================================================
-# m.OPF_res = Block(m.S, rule=OPF_block)
-# 
-# def linking_blocks_P(m,season,house,time,node,battery):
-#     for n,v in house_bus.items():
-#         if n == node and v == house:
-#             return (m.DES_res[season].E_PV_sold[house,time] - m.DES_res[season].E_grid[house,time] \
-#                 - m.DES_res[season].E_grid_charge[house,time,battery])/S_base == m.OPF_res[season].P[node,time] #+ m.slack[node,time]
-#         else:
-#             continue
-#     else:
-#         return Constraint.Skip
-# m.Active_power_link = Constraint(m.S, house, m.timestamp, nodes, battery, rule = linking_blocks_P)
-# 
-# 
-# def linking_blocks_Q(m,season,house,time,node):
-#     for n,v in house_bus.items():
-#         if n == node and v == house:
-#             return m.DES_res[season].Q_gen[house,time]/S_base == m.OPF_res[season].Q[node,time] #+ m.slack[node,time]
-#         else:
-#             continue
-#     else:
-#         return Constraint.Skip
-# m.Reactive_power_link = Constraint(m.S, house, m.timestamp, nodes, rule = linking_blocks_Q)
-# =============================================================================
+m.OPF_res = Block(m.S, rule=OPF_block)
+
+def linking_blocks_P(m,season,house,time,node,battery):
+    for n,v in house_bus.items():
+        if n == node and v == house:
+            return (m.DES_res[season].E_PV_sold[house,time] - m.DES_res[season].E_grid[house,time] \
+                - m.DES_res[season].E_grid_charge[house,time,battery])/S_base == m.OPF_res[season].P[node,time] #+ m.slack[node,time]
+        else:
+            continue
+    else:
+        return Constraint.Skip
+m.Active_power_link = Constraint(m.S, house, m.timestamp, nodes, battery, rule = linking_blocks_P)
+
+
+def linking_blocks_Q(m,season,house,time,node):
+    for n,v in house_bus.items():
+        if n == node and v == house:
+            return m.DES_res[season].Q_gen[house,time]/S_base == m.OPF_res[season].Q[node,time] #+ m.slack[node,time]
+        else:
+            continue
+    else:
+        return Constraint.Skip
+m.Reactive_power_link = Constraint(m.S, house, m.timestamp, nodes, rule = linking_blocks_Q)
 
 
 solver = SolverFactory("octeract-engine")
