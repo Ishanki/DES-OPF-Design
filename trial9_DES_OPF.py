@@ -59,13 +59,14 @@ class DES_OPF(object):
         model.line_R = Param(model.n, model.m, initialize = resistance, default=0)
         model.line_X = Param(model.n, model.m, initialize = reactance, default=0)
         
-        V_base = self.df_grid.iat[0,1] #'nominal voltage (V)'
+        V_BASE = self.df_grid.iat[0,1] #'nominal voltage (V)'
         PF =  self.df_grid.iat[1,1] #doc = 'power factor'
         V_UB = self.df_grid.iat[2,1] #doc = 'network voltage upper bound (V)'
         V_LB = self.df_grid.iat[3,1] #doc = 'network voltage lower bound (V)'
-        Freq = self.df_grid.iat[4,1] #doc = 'network frequency (Hz)'
-        S_base = self.df_grid.iat[5,1] #doc = 'base apparent power (kVA)'
-        I_max = self.df_grid.iat[6,1] #doc = 'line current (A)'
+        FREQ = self.df_grid.iat[4,1] #doc = 'network frequency (Hz)'
+        S_BASE = self.df_grid.iat[5,1] #doc = 'base apparent power (kVA)'
+        I_MAX = self.df_grid.iat[6,1] #doc = 'line current (A)'
+        I_BASE = S_BASE/V_BASE
         
         '''Constructing the admittance matrix'''
         def branch_series_admittance(model,n,m):
@@ -75,7 +76,16 @@ class DES_OPF(object):
             else:
                 return 0
         model.y_series = Param(model.n,model.m, initialize = branch_series_admittance)
-        # model.y_check.pprint()
+        # model.y_series.pprint()
+        
+        y_series_mags_sqr = {}
+        for k, v in model.y_series.items():
+            if v != 0:
+                y_series_mags_sqr[k] = v.real**2 + v.imag**2
+            else:
+                y_series_mags_sqr[k] = 0
+        model.y_branch_magsqr = Param(model.n, model.m, initialize = y_series_mags_sqr)
+        # model.y_branch_magsqr.pprint()
         
         Y = {}
         for k,v in model.y_series.items():
@@ -134,6 +144,7 @@ class DES_OPF(object):
         model.P = Var(model.n, model.t,  bounds = (None,None), doc = 'node active power', initialize = 0)
         model.Q = Var(model.n, model.t,  bounds = (None,None), doc = 'node reactive power', initialize = 0)
         model.theta = Var(model.n, model.t, bounds = (None,None), doc = 'voltage angle', initialize = 0)
+        model.current_sqr = Var(model.n, model.m, model.t, bounds = (None,None), initialize=0)
         
         def P_balance(model,n,t):
             return model.P[n,t] == model.V[n,t]*sum(model.V[m,t]*((model.G[n,m]*cos(model.theta[n,t]-model.theta[m,t])) \
@@ -147,7 +158,7 @@ class DES_OPF(object):
         
         def V_bus_upper(model,n,t):
             if n != self.slack:
-                return model.V[n,t] <= V_UB/V_base
+                return model.V[n,t] <= V_UB/V_BASE
                 #return model.V[n,t] <= 1.05
             else:
                 return model.V[n,t] == 1
@@ -155,7 +166,7 @@ class DES_OPF(object):
         
         def V_bus_lower(model,n,t):
             if n != self.slack:
-                return model.V[n,t] >= V_LB/V_base
+                return model.V[n,t] >= V_LB/V_BASE
                 #return model.V[n,t] >= 0.95
             else:
                 return model.V[n,t] == 1
@@ -176,36 +187,37 @@ class DES_OPF(object):
         model.C6 = Constraint(model.n,model.t, rule = theta_lower)
         
 # =============================================================================
-#         def Non_gen_P(model,n,t):
-#             if n !=self.slack and n not in self.gen:
-#                 return model.P[n,t] == 0
-#             else:
-#                 return Constraint.Skip
-#         model.C7 = Constraint(model.n,model.t, rule = Non_gen_P)
-#         
-#         def Non_gen_Q(model,n,t):
-#             if n != self.slack and n not in self.gen:
-#                 return model.Q[n,t] == 0
-#             else:
-#                 return Constraint.Skip
-#         model.C8 = Constraint(model.n,model.t, rule = Non_gen_Q)
-# =============================================================================
-        def PCC_limit1(model,n,t):
-            if n == self.slack:
-                return model.P[n,t] >= -2.5/S_base
-            #model.P[n,t] >= -2.5/S_base
+        def Non_gen_P(model,n,t):
+            if n !=self.slack and n not in self.gen:
+                return model.P[n,t] == 0
             else:
                 return Constraint.Skip
-            
-        model.C9 = Constraint(model.n,model.t, rule = PCC_limit1)
+        model.C7 = Constraint(model.n,model.t, rule = Non_gen_P)
         
-        def PCC_limit2(model,n,t):
-            if n == self.slack:
-                return model.Q[n,t] >= -2.5/S_base
-            #model.P[n,t] >= -2.5/S_base
+        def Non_gen_Q(model,n,t):
+            if n != self.slack and n not in self.gen:
+                return model.Q[n,t] == 0
             else:
                 return Constraint.Skip
+        model.C8 = Constraint(model.n,model.t, rule = Non_gen_Q)
+# =============================================================================
+        
+        # New current constraint using series branch admittance
+        def current_equality(model,n,m,t):
+            if value(model.y_branch_magsqr[n,m]) != 0:
+                return model.current_sqr[n,m,t] == (((model.V[n,t]*cos(model.theta[n,t])) - (model.V[m,t]*cos(model.theta[m,t])))**2 \
+                    + ((model.V[n,t]*sin(model.theta[n,t])) - (model.V[m,t]*sin(model.theta[m,t])))**2) \
+                    * model.y_branch_magsqr[n,m]
+            else:
+                return Constraint.Skip
+        model.C11 = Constraint(model.n, model.m, model.t, rule=current_equality)
+        
+        def current_constraint(model,n,m,t):
+            if value(model.y_branch_magsqr[n,m]) != 0:
+                return model.current_sqr[n,m,t] <= (I_MAX/I_BASE)**2
+            else:
+                return Constraint.Skip
+        model.C12 = Constraint(model.n, model.m, model.t, rule=current_constraint)
             
-        model.C10 = Constraint(model.n,model.t, rule = PCC_limit2)
         
         return model
