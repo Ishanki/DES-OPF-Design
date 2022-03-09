@@ -1,0 +1,26 @@
+
+Problem: 
+- Name: C\x3a\Users\Ishanki\AppData\Local\Temp\tmpqli8f9uk\model.gms
+  Lower bound: 21296.81798190982
+  Upper bound: 21296.81798190979
+  Number of objectives: 1
+  Number of constraints: 134135.0
+  Number of variables: 72581.00000000001
+  Number of binary variables: None
+  Number of integer variables: 4312.0
+  Number of continuous variables: 68269.00000000001
+  Number of nonzeros: 278995.0
+  Sense: minimize
+Solver: 
+- Name: GAMS (29, 1, 0, 0)
+  Status: ok
+  Return code: 0
+  Message: None
+  User time: 2.434000326320529
+  System time: None
+  Wallclock time: None
+  Termination condition: optimal
+  Termination message: None
+Solution: 
+- number of solutions: 0
+  number of solutions displayed: 0

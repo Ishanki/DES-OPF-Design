@@ -1,0 +1,26 @@
+
+Problem: 
+- Name: C\x3a\Users\Ishanki\AppData\Local\Temp\tmpktwbovrd\model.gms
+  Lower bound: nan
+  Upper bound: 27881.92950751891
+  Number of objectives: 1
+  Number of constraints: 258271.0
+  Number of variables: 168109.0
+  Number of binary variables: None
+  Number of integer variables: 0.0
+  Number of continuous variables: 168109.0
+  Number of nonzeros: 741827.0
+  Sense: minimize
+Solver: 
+- Name: GAMS (29, 1, 0, 0)
+  Status: ok
+  Return code: 0
+  Message: None
+  User time: 166.9219999574125
+  System time: None
+  Wallclock time: None
+  Termination condition: locallyOptimal
+  Termination message: None
+Solution: 
+- number of solutions: 0
+  number of solutions displayed: 0
