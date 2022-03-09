@@ -1,4 +1,4 @@
-# DES-OPF-Design
+# Combined DES-OPF Framework for Designing Grid-Connected Distributed Energy Systems 
 This repository includes an MILP model to design a Distributed Energy System, which can be combined with NLP formulations for balanced AC optimal power flow (OPF) to form an MINLP model overall. The latter model can be solved either using the bi-level method proposed in the preprint, or as a conventional MINLP. \
 
 Note that the results from the OPF class (voltage magnitudes, angles, active/reactive powers, and currents)
