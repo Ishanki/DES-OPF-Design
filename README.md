@@ -6,8 +6,8 @@ Note that the results from the OPF class (voltage magnitudes, angles, active/rea
 are all returned in p.u. Please use the bases of these to convert them to SI units. 
 
 **Preprint (completed results and analysis)**:\
-I. De Mel, O. V. Klymenko, and M. Short, “Investigating the Consolidation of the Optimal Design of Distributed Energy Systems with Optimal Power Flow,” Sep. 2021, \
-Available: https://arxiv.org/abs/2109.11228v1
+I. De Mel, O. V. Klymenko, and M. Short, “Optimal Design of Distributed Energy Systems Considering the Impacts on Electrical Power Networks,” Sep. 2021, \
+Available: https://arxiv.org/abs/2109.11228v2
 
 **Preliminary analysis - Conference Proceedings**:\
 I. A. De Mel, O. V. Klymenko, and M. Short, “Levels of Approximation for the Optimal Design of Distributed Energy Systems,” Comput. Aided Chem. Eng., vol. 50, pp. 1403–1408, Jan. 2021. \
